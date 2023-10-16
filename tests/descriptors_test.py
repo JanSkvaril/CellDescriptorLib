@@ -3,7 +3,6 @@ import unittest
 import skimage.io as io
 import skimage as sk
 import DescriptorLib.descriptors as lib
-import matplotlib.pyplot as plt
 import numpy as np
 
 
