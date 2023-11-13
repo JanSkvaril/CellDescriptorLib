@@ -2,6 +2,8 @@ import numpy as np
 from scipy.stats import moment, gmean,skew,kurtosis, entropy
 from skimage.measure import moments_central, moments_hu, moments,moments_normalized
 from skimage.feature import graycomatrix, graycoprops
+from skimage.morphology import closing, opening, disk
+
 def StdDev(image: np.array, mask: np.array) -> float:
     """
         Calculates the standard deviation of the image within the mask.
@@ -164,4 +166,35 @@ def GlcmFeatures(matrix:np.array, mean :bool = False) -> dict:
         for k in result:
             result[k] = np.mean(result[k])
     return result
+
+def Granulometry(image: np.array, mask: np.array, max_size = 10, step = 1) -> np.array:
+    """
+        Creates granulometric curve from values in mask. 
+        - image: 2D numpy array
+        - mask: 2D numpy array, binary mask
+        - max_size: maximum size of the structuring element, every elemnt up to this size will be used
+        - step: step between sizes
+
+        Returns granulometric curve, that shows size distributions of objects in the image
+    """
+    sums = []
+
+    for size in range(max_size,0, step*-1):
+        se = disk(size)
+        im = closing(image, se)
+        im[mask == 0] = 0
+        sums.append(np.sum(im))
+    
+    for size in range(0, max_size, step):
+        se = disk(size)
+        im = opening(image, se)
+        im[mask == 0] = 0
+        sums.append(np.sum(im))
+    curve = np.array(sums)
+    curve = -np.abs(np.diff(curve))
+    curve = curve - np.min(curve)
+    curve = curve /  np.max(curve)
+    return curve
+    
+
 
