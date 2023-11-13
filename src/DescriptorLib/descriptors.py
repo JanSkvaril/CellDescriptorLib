@@ -5,7 +5,7 @@ from skimage.feature import graycomatrix, graycoprops
 from skimage.morphology import closing, opening, disk
 from skimage.filters import window
 from skimage.transform import resize
-from skimage.filters import correlate_sparse
+from skimage.filters import correlate_sparse, gabor
 from skimage.feature import local_binary_pattern
 
 def StdDev(image: np.array, mask: np.array) -> float:
@@ -249,4 +249,55 @@ def LocalBinaryPattern(image: np.array, mask: np.array):
    
     return Histogram(pb, mask, bins=n_points+1)
 
+
+def GaborFilters(image: np.array, mask: np.array, thetas:int = 10, frequencies:int = 10, freq_range = (0.1,0.9)) -> np.array:
+    """
+        Creates a bank of gabor filter responses from image within mask.
+        - image: 2D numpy array
+        - mask: 2D numpy array, binary mask.
+        - thetas: number of angles, evenly spaced between 0 and 2pi
+        - frequencies: number of frequencies, evenly spaced between freq_range[0] and freq_range[1]
+        - freq_range: tuple of min and max frequency
+        Returns list of images - gabor filter responses
+    """
+    featrue_bank = []
+    for theta in np.linspace(0,np.pi*2, thetas):
+        for freq in np.linspace(freq_range[0],freq_range[1],frequencies):
+            res,_ = gabor(image, frequency=freq, theta=theta)
+            res[mask == 0] = 0
+            featrue_bank.append(res)
+    return featrue_bank
+
+def SpectralHistogram(feature_bank, bins = 255):
+    """
+        Creates spectral histogram from feature bank.
+        - feature_bank: list of 2D numpy arrays, if mask is used, features should be masked
+        - bins: number of bins for the histogram, images are normalized to range [0, binds]
+        returns list of histograms - spectral histogram
+    """
+    histograms = []
+    for feature in feature_bank:
+        f = feature - np.min(feature)
+        f = f / np.max(f)
+        f = f * bins
+        histograms.append(np.histogram(f, bins=bins)[0][1:])
+    return histograms
+
+
+
+def FeatureBankEnergy(feature_bank, normalize = False):
+    """
+        Computes energy of each feature in feature bank.
+        - feature_bank: list of 2D numpy arrays, if mask is used, features should be masked
+        - normalize: if true, energy is normalized to range [0,1]
+        returns array of energies
+    """
+    energies = []
+    for feature in feature_bank:
+        energies.append(np.sum(np.square(feature)))
+    energies = np.array(energies)
+    if normalize:
+        energies = energies - np.min(energies)
+        energies = energies / np.max(energies)
+    return energies
 
