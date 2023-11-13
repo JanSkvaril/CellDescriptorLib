@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import moment, gmean,skew,kurtosis, entropy
+from skimage.measure import moments_central, moments_hu, moments,moments_normalized
 
 def StdDev(image: np.array, mask: np.array) -> float:
     """
@@ -12,6 +13,19 @@ def StdDev(image: np.array, mask: np.array) -> float:
     src = np.float64(np.copy(image))
     src[mask == 0] = np.nan
     return np.nanstd(src)
+
+
+def Mean(image: np.array, mask: np.array) -> float:
+    """
+        Calculates the mean of the image within the mask.
+        - image: 2D numpy array
+        - mask: 2D numpy array, binary mask
+        Returns 
+        """
+
+    src = np.float64(np.copy(image))
+    src[mask == 0] = np.nan
+    return np.nanmean(src)
 
 
 
@@ -69,3 +83,41 @@ def HistogramDescriptors(histogram : np.array) -> dict:
 
     
     return result
+
+
+def Moments(image: np.array, mask: np.array) -> np.array:
+    """
+        Calculates the central moments of the image within the mask.
+        - image: 2D numpy array
+        - mask: 2D numpy array, binary mask
+        Returns 
+        """
+    src = np.copy(image)
+    src[mask == 0] = 0
+    return moments(src)
+
+def MomentsCentral(image: np.array, mask: np.array) -> np.array:
+    """
+        Calculates the central moments of the image within the mask.
+        - image: 2D numpy array
+        - mask: 2D numpy array, binary mask
+        Returns 
+        """
+    src = np.copy(image)
+    src[mask == 0] = 0
+    return moments_central(src)
+
+
+
+def MomentsHu(image: np.array, mask: np.array) -> np.array:
+    """
+        Calculates the normalized moments of the image within the mask.
+        - image: 2D numpy array
+        - mask: 2D numpy array, binary mask
+        Returns 
+        """
+    src = np.copy(image)
+    src[mask == 0] = 0
+    return moments_hu(src)
+
+
