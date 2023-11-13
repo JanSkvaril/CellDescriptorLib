@@ -6,6 +6,7 @@ from skimage.morphology import closing, opening, disk
 from skimage.filters import window
 from skimage.transform import resize
 from skimage.filters import correlate_sparse
+from skimage.feature import local_binary_pattern
 
 def StdDev(image: np.array, mask: np.array) -> float:
     """
@@ -236,5 +237,16 @@ def Autocorrelation(image: np.array, mask: np.array, size:int|None = None) -> np
         dataAC = resize(dataAC, (size,size))
     return dataAC
 
+
+def LocalBinaryPattern(image: np.array, mask: np.array):
+    """
+        Computes histogram of local binary patterns from image within mask.
+    """
+
+    radius = 3
+    n_points = 8 * radius
+    pb = local_binary_pattern(image,n_points, radius, method="uniform")
+   
+    return Histogram(pb, mask, bins=n_points+1)
 
 
