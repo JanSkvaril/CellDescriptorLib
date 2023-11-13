@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import moment, gmean,skew,kurtosis, entropy
 from skimage.measure import moments_central, moments_hu, moments,moments_normalized
-
+from skimage.feature import graycomatrix, graycoprops
 def StdDev(image: np.array, mask: np.array) -> float:
     """
         Calculates the standard deviation of the image within the mask.
@@ -120,4 +120,48 @@ def MomentsHu(image: np.array, mask: np.array) -> np.array:
     src[mask == 0] = 0
     return moments_hu(src)
 
+
+def Glcm(image: np.array, mask: np.array) -> np.array:
+    """
+        Creates gray level co-ocurrence matrix from values in mask. 
+        Polar coordinates are (1, [0,pi/4,pi/2,3pi/4]). Therefore, the matrix is 255x255x1x4.
+        - image: 2D numpy array, with values ranging from 0 to 255
+        - mask: 2D numpy array, binary mask
+        Returns co-ocurrence matrix
+    """
+    src = np.copy(image)
+    src[mask == 0] = 0
+    matrix = graycomatrix(src, [1], [0, np.pi/4, np.pi/2, 3*np.pi/4], levels=256, normed=True)
+    matrix = matrix[1:,1:,:,:] # throw away zeros
+    return matrix
+
+def GlcmFeatures(matrix:np.array, mean :bool = False) -> dict:
+    """
+        Computes the descriptors of the co-ocurrence matrix.
+        - matrix: glcm matrix
+        - mean: if true, returns the mean of the descriptors
+        Returns a dictionary with the following descriptors:
+        - contrast
+        - dissimilarity
+        - homogeneity
+        - ASM
+        - energy
+        - correlation
+        - entropy
+        - max - maximum propability
+    """
+    result = dict()
+    result["contrast"] = graycoprops(matrix, prop="contrast")
+    result["dissimilarity"] = graycoprops(matrix, prop="dissimilarity")
+    result["homogeneity"] = graycoprops(matrix, prop="homogeneity")
+    result["ASM"] = graycoprops(matrix, prop="ASM")
+    result["energy"] = graycoprops(matrix, prop="energy")
+    result["correlation"] = graycoprops(matrix, prop="correlation")
+    result["entropy"] = entropy(matrix, axis=(0,1))
+    result["max"] = np.max(matrix, axis=(0,1))
+
+    if mean:
+        for k in result:
+            result[k] = np.mean(result[k])
+    return result
 
