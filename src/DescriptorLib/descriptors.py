@@ -5,6 +5,7 @@ from skimage.feature import graycomatrix, graycoprops
 from skimage.morphology import closing, opening, disk
 from skimage.filters import window
 from skimage.transform import resize
+from skimage.filters import correlate_sparse
 
 def StdDev(image: np.array, mask: np.array) -> float:
     """
@@ -216,4 +217,24 @@ def PowerSpectrum(image: np.array, mask: np.array, size:int|None = None) -> np.a
     if size is not None:
         freq = resize(freq, (size,size))
     return np.square(freq)
+
+
+def Autocorrelation(image: np.array, mask: np.array, size:int|None = None) -> np.array:
+    """
+        Calculates the autocorrelation of the image within the mask.
+        - image: 2D numpy array
+        - mask: 2D numpy array, binary mask.
+    """
+    src = np.copy(image)
+    src[mask == 0] = 0 
+    
+    dataFT = np.fft.fft(src, axis=1)
+    dataAC = np.fft.ifft(dataFT * np.conjugate(dataFT), axis=1).real
+    dataAC = np.fft.fftshift(dataAC, axes=1)
+
+    if size is not None:
+        dataAC = resize(dataAC, (size,size))
+    return dataAC
+
+
 
