@@ -3,6 +3,8 @@ from scipy.stats import moment, gmean,skew,kurtosis, entropy
 from skimage.measure import moments_central, moments_hu, moments,moments_normalized
 from skimage.feature import graycomatrix, graycoprops
 from skimage.morphology import closing, opening, disk
+from skimage.filters import window
+from skimage.transform import resize
 
 def StdDev(image: np.array, mask: np.array) -> float:
     """
@@ -197,4 +199,21 @@ def Granulometry(image: np.array, mask: np.array, max_size = 10, step = 1) -> np
     return curve
     
 
+
+def PowerSpectrum(image: np.array, mask: np.array, size:int|None = None) -> np.array:
+    """
+        Calculates the power spectrum of the image within the mask.
+        - image: 2D numpy array
+        - mask: 2D numpy array, binary mask.
+        returns 2D image containg powerscpetrum
+        """
+    src = np.copy(image)
+    src[mask == 0] = 0 # TODO: check if this is correct
+    wimage = src * window('hann', src.shape)
+    wimage = wimage - np.mean(wimage)
+    freq = np.abs(np.fft.fft2(wimage))
+    freq = np.fft.fftshift(freq)
+    if size is not None:
+        freq = resize(freq, (size,size))
+    return np.square(freq)
 
