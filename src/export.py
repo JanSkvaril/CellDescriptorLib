@@ -11,9 +11,10 @@ Author: Denisa Rudincová
 Date: 16. 11. 2023
 """
 
+import os
 import sys
 import json
-# import pickle
+import pickle
 import skimage.io as io
 import skimage.measure as measure
 import numpy as np
@@ -29,6 +30,8 @@ TODO:
 - create options and flags
 - calculate more descriptors
 - pickle and json?
+- viac obrázkov zo složky
+- premenovať na export
 """
 
 
@@ -56,7 +59,8 @@ def calculate_descriptors(image: np.ndarray,
     return True
 
 
-def dict_elements_to_string(dictionary: Dict[str, Any]) -> Dict[str, Any]:
+def dict_elements_to_string(dictionary: Dict[str, Any], show_types: bool)\
+     -> Dict[str, Any]:
     """
     Transforms all values that are not JSON seriazable in a tuple of orignal
     type and string value.
@@ -67,31 +71,40 @@ def dict_elements_to_string(dictionary: Dict[str, Any]) -> Dict[str, Any]:
 
     for key, value in dictionary.items():
         if isinstance(value, Dict):
-            new_dictionary[key] = dict_elements_to_string(dictionary[key])
+            new_dictionary[key] = dict_elements_to_string(dictionary[key],
+                                                          show_types)
+
         elif not type(value) in [str, int, float, bool, list]:
-            new_dictionary[key] = (str(type(value)).split("\'")[1], str(value))
+            x = str(value)
+            new_dictionary[key] = (str(type(value)).split("\'")[1], x)\
+                if show_types else x
         else:
             new_dictionary[key] = value
 
     return new_dictionary
 
 
-def export_results(results: Dict[str, Any]) -> bool:
+def export_results_json(results: Dict[str, Any], show_types=False) -> bool:
     """
     Exports results into a JSON file
     """
 
-    string_results = dict_elements_to_string(results)
-    y = json.dumps(string_results, indent=4)
+    string_results = dict_elements_to_string(results, show_types)
+    content = json.dumps(string_results, indent=4)
 
     with open("output.json", "w") as file:
-        file.write(y)
+        file.write(content)
 
-    # with open('numpy_array.pkl', 'wb') as file:
-    #     pickle.dump(results, file)
+    return True
 
-    # with open('numpy_array.pkl', 'rb') as file:
-    #     unpickled = pickle.load(file)
+
+def export_results_pickle(results: Dict[str, Any]) -> bool:
+    """
+    Exports results into a pickle file
+    """
+
+    with open('output.pkl', 'wb') as file:
+        pickle.dump(results, file)
 
     return True
 
@@ -102,6 +115,14 @@ def main() -> bool:
     mask_path = "./tests/testdata/cell_mask.tif"\
         if len(sys.argv) < 3 else sys.argv[2]
 
+    if (not os.path.exists(img_path)):
+        print(f"The path {img_path} does not exists")
+        return False
+
+    if (not os.path.exists(mask_path)):
+        print(f"The path {mask_path} does not exists")
+        return False
+
     image = io.imread(img_path)
     mask = io.imread(mask_path)
 
@@ -109,16 +130,21 @@ def main() -> bool:
 
     results: Dict[str, Any] = {}
 
-    for id, region in enumerate(regions):
-        if id == 0:
-            continue
-        results[id] = {}
-        min_row, min_col, max_row, max_col = region.bbox
-        calculate_descriptors(image[min_row:max_row + 1, min_col:max_col + 1],
-                              mask[min_row:max_row + 1, min_col:max_col + 1],
-                              results[id])
+    for region in regions:
+        id = region.label
 
-    export_results(results)
+        results[id] = {}
+        results[id]["bbox"] = region.bbox
+
+        min_row, min_col, max_row, max_col = region.bbox
+        region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
+        region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
+        region_mask = (region_mask == id).astype(int)
+
+        calculate_descriptors(region_img, region_mask, results[id])
+
+    export_results_json(results)
+    export_results_pickle(results)
 
     return True
 
