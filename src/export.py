@@ -1,16 +1,18 @@
 """
 This script calculates descriptors from CellDescriptorsLib
+for given image and its mask (or two directories)
 and exports all the data into a JSON file.
 
 Usage:
 - Run the script with Python to perform the calculation and export.
-- Provide necessary inputs via command-line arguments or user prompts.
-  - (in case of no inputs, script uses testdata)
+- Provide necessary inputs via command-line arguments.
+    - (in case of no inputs, script uses testdata)
 
 Author: Denisa Rudincová
 Date: 16. 11. 2023
 """
 
+# import argparse
 import os
 import sys
 import json
@@ -20,18 +22,16 @@ import skimage.measure as measure
 import numpy as np
 
 from DescriptorLib import MaskDecriptors, Histogram, HistogramDescriptors, \
-    Moments, MomentsCentral, MomentsHu
+    Moments, MomentsCentral, MomentsHu, GlcmFeatures, Glcm, PowerSpectrum, \
+    Autocorrelation, Granulometry, LocalBinaryPattern, GaborFilters, \
+    FeatureBankEnergy  # , SpectralHistogram
 from typing import Any, Dict
 
 """
 TODO:
 
-- validate inputs
 - create options and flags
-- calculate more descriptors
-- pickle and json?
-- viac obrázkov zo složky
-- premenovať na export
+- analyze whole directories
 """
 
 
@@ -51,10 +51,17 @@ def calculate_descriptors(image: np.ndarray,
     results["Mask Descriptors"] = MaskDecriptors(mask)
     histogram: Dict[str, Any] = Histogram(image, mask)
     results["Histrogram Descriptors"] = HistogramDescriptors(histogram)
-
     results["Moments"] = Moments(image, mask)
     results["Central Moments"] = MomentsCentral(image, mask)
     results["Hu Moments"] = MomentsHu(image, mask)
+    results["GLCM Features"] = GlcmFeatures(Glcm(image, mask))
+    results["Granulometry"] = Granulometry(image, mask)
+    results["PowerSpectrum"] = PowerSpectrum(image, mask)
+    results["Autocorrelation"] = Autocorrelation(image, mask)
+    results["LocalBinaryPattern"] = LocalBinaryPattern(image, mask)
+    results["GaborFilters"] = GaborFilters(image, mask)
+    # results["SpectralHistogram"] = SpectralHistogram(results["GaborFilters"])
+    results["GaborFilters"] = FeatureBankEnergy(results["GaborFilters"])
 
     return True
 
@@ -62,7 +69,7 @@ def calculate_descriptors(image: np.ndarray,
 def dict_elements_to_string(dictionary: Dict[str, Any], show_types: bool)\
      -> Dict[str, Any]:
     """
-    Transforms all values that are not JSON seriazable in a tuple of orignal
+    Transforms all values that are not JSON seriazable into a tuple of orignal
     type and string value.
 
     Returns JSON serializable dictionary
@@ -84,45 +91,35 @@ def dict_elements_to_string(dictionary: Dict[str, Any], show_types: bool)\
     return new_dictionary
 
 
-def export_results_json(results: Dict[str, Any], show_types=False) -> bool:
+def export_results_json(results: Dict[str, Any],
+                        show_types=False,
+                        filename="output") -> None:
     """
-    Exports results into a JSON file
+    Exports results into a JSON file.
     """
 
     string_results = dict_elements_to_string(results, show_types)
     content = json.dumps(string_results, indent=4)
 
-    with open("output.json", "w") as file:
+    with open(filename+".json", "w") as file:
         file.write(content)
 
-    return True
+    return
 
 
-def export_results_pickle(results: Dict[str, Any]) -> bool:
+def export_results_pickle(results: Dict[str, Any],
+                          filename: str = "output") -> None:
     """
-    Exports results into a pickle file
+    Exports results into a pickle file.
     """
 
-    with open('output.pkl', 'wb') as file:
+    with open(filename+".pkl", "wb") as file:
         pickle.dump(results, file)
 
     return True
 
 
-def main() -> bool:
-    img_path = "./tests/testdata/cell_img.tif"\
-        if len(sys.argv) < 3 else sys.argv[1]
-    mask_path = "./tests/testdata/cell_mask.tif"\
-        if len(sys.argv) < 3 else sys.argv[2]
-
-    if (not os.path.exists(img_path)):
-        print(f"The path {img_path} does not exists")
-        return False
-
-    if (not os.path.exists(mask_path)):
-        print(f"The path {mask_path} does not exists")
-        return False
-
+def analyze_image(img_path, mask_path):
     image = io.imread(img_path)
     mask = io.imread(mask_path)
 
@@ -145,8 +142,25 @@ def main() -> bool:
 
     export_results_json(results)
     export_results_pickle(results)
+    return
 
-    return True
+
+def main() -> bool:
+    img_path = "./tests/testdata/cell_img.tif"\
+        if len(sys.argv) < 3 else sys.argv[1]
+    mask_path = "./tests/testdata/cell_mask.tif"\
+        if len(sys.argv) < 3 else sys.argv[2]
+
+    if (not os.path.exists(img_path)):
+        print(f"The path {img_path} does not exists")
+        return False
+
+    if (not os.path.exists(mask_path)):
+        print(f"The path {mask_path} does not exists")
+        return False
+
+    analyze_image(img_path, mask_path)
+    return
 
 
 if __name__ == '__main__':
