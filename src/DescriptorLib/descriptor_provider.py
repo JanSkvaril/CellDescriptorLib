@@ -1,4 +1,4 @@
-from descriptors import *
+from .descriptors import *
 
 
 def GetAll() -> list:
