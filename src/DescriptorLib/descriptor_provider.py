@@ -1,4 +1,7 @@
-from .descriptors import *
+import numpy as np
+from .descriptors import MaskDecriptors, HistogramDescriptors, \
+    Moments, MomentsCentral, MomentsHu, GlcmFeatures, Granulometry, \
+    PowerSpectrum, Autocorrelation, LocalBinaryPattern, GaborEnergy
 
 
 def GetAll() -> list:
@@ -25,7 +28,8 @@ def GetAll() -> list:
 def ComputeForAll(image: np.array, mask: np.array) -> dict:
     """
     Computes all descriptors for the given image and mask.
-    returns dictionary with descriptor name as key, value is tuple (type, result)
+    returns dictionary with descriptor name as key, value is tuple
+    (type, result)
     """
     results = {}
     for desc in GetAll():

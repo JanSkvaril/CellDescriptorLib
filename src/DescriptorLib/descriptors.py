@@ -154,8 +154,10 @@ class Histogram(DescriptorBase):
 
         return self.Histogram(image, mask, bins=self.bins)
 
-    def Histogram(self, image: np.array, mask: np.array, bins: int | None = None)\
-            -> np.array:
+    def Histogram(self,
+                  image: np.array,
+                  mask: np.array,
+                  bins: int | None = None) -> np.array:
         if bins is None:
             bins = np.max(image)
 
@@ -311,8 +313,8 @@ class GlcmFeatures(DescriptorBase):
     def Glcm(self, image: np.array, mask: np.array) -> np.array:
         """
             Creates gray level co-ocurrence matrix from values in mask.
-            Polar coordinates are (1, [0,pi/4,pi/2,3pi/4]). Therefore, the matrix
-            is 255x255x1x4.
+            Polar coordinates are (1, [0,pi/4,pi/2,3pi/4]). Therefore,
+            the matrix is 255x255x1x4.
             - image: 2D numpy array, with values ranging from 0 to 255
             - mask: 2D numpy array, binary mask
             Returns co-ocurrence matrix
@@ -377,8 +379,11 @@ class Granulometry(DescriptorBase):
     def GetType(self) -> DescriptorType:
         return DescriptorType.VECTOR
 
-    def Granulometry(self, image: np.array, mask: np.array, max_size=10, step=1)\
-            -> np.array:
+    def Granulometry(self,
+                     image: np.array,
+                     mask: np.array,
+                     max_size=10,
+                     step=1) -> np.array:
         sums = []
 
         for size in range(max_size, 0, step*-1):
@@ -442,8 +447,11 @@ class Autocorrelation(DescriptorBase):
 
     def GetType(self) -> DescriptorType:
         return DescriptorType.MATRIX
-    def Autocorrelation(self, image: np.array, mask: np.array, size: int | None = None)\
-            -> np.array:
+
+    def Autocorrelation(self,
+                        image: np.array,
+                        mask: np.array,
+                        size: int | None = None) -> np.array:
         """
             Calculates the autocorrelation of the image within the mask.
             - image: 2D numpy array
