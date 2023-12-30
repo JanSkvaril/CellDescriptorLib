@@ -21,10 +21,7 @@ import skimage.io as io
 import skimage.measure as measure
 import numpy as np
 
-from DescriptorLib import MaskDecriptors, Histogram, HistogramDescriptors, \
-    Moments, MomentsCentral, MomentsHu, GlcmFeatures, Glcm, PowerSpectrum, \
-    Autocorrelation, Granulometry, LocalBinaryPattern, GaborFilters, \
-    FeatureBankEnergy  # , SpectralHistogram
+from DescriptorLib import descriptor_provider
 from typing import Any, Dict
 
 """
@@ -47,27 +44,14 @@ def calculate_descriptors(image: np.ndarray,
 
     Returns
     """
-
-    results["Mask Descriptors"] = MaskDecriptors(mask)
-    histogram: Dict[str, Any] = Histogram(image, mask)
-    results["Histrogram Descriptors"] = HistogramDescriptors(histogram)
-    results["Moments"] = Moments(image, mask)
-    results["Central Moments"] = MomentsCentral(image, mask)
-    results["Hu Moments"] = MomentsHu(image, mask)
-    results["GLCM Features"] = GlcmFeatures(Glcm(image, mask))
-    results["Granulometry"] = Granulometry(image, mask)
-    results["PowerSpectrum"] = PowerSpectrum(image, mask)
-    results["Autocorrelation"] = Autocorrelation(image, mask)
-    results["LocalBinaryPattern"] = LocalBinaryPattern(image, mask)
-    results["GaborFilters"] = GaborFilters(image, mask)
-    # results["SpectralHistogram"] = SpectralHistogram(results["GaborFilters"])
-    results["GaborFilters"] = FeatureBankEnergy(results["GaborFilters"])
-
+    res = descriptor_provider.ComputeForAll(image, mask)
+    for key, value in res.items():
+        results[key] = value
     return True
 
 
 def dict_elements_to_string(dictionary: Dict[str, Any], show_types: bool)\
-     -> Dict[str, Any]:
+        -> Dict[str, Any]:
     """
     Transforms all values that are not JSON seriazable into a tuple of orignal
     type and string value.
