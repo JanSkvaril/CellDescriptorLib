@@ -50,8 +50,8 @@ def calculate_descriptors(image: np.ndarray,
     return True
 
 
-def dict_elements_to_string(dictionary: Dict[str, Any], show_types: bool)\
-        -> Dict[str, Any]:
+def dict_elements_to_string(dictionary: Dict[str, Any],
+                            show_types: bool = False) -> Dict[str, Any]:
     """
     Transforms all values that are not JSON seriazable into a tuple of orignal
     type and string value.
@@ -76,34 +76,41 @@ def dict_elements_to_string(dictionary: Dict[str, Any], show_types: bool)\
 
 
 def export_results_json(results: Dict[str, Any],
-                        show_types=False,
-                        filename="output") -> None:
+                        filename: str = "output",
+                        directory: str = "output") -> None:
     """
     Exports results into a JSON file.
     """
 
-    string_results = dict_elements_to_string(results, show_types)
+    string_results = dict_elements_to_string(results)
     content = json.dumps(string_results, indent=4)
 
-    with open(filename+".json", "w") as file:
+    if (not os.path.exists(directory)):
+        os.mkdir(directory)
+
+    with open(f"{directory}/{filename}.json", "w") as file:
         file.write(content)
 
     return
 
 
 def export_results_pickle(results: Dict[str, Any],
-                          filename: str = "output") -> None:
+                          filename: str = "output",
+                          directory: str = "output") -> None:
     """
     Exports results into a pickle file.
     """
 
-    with open(filename+".pkl", "wb") as file:
+    if (not os.path.exists(directory)):
+        os.mkdir(directory)
+
+    with open(f"{directory}/{filename}.pkl", "wb") as file:
         pickle.dump(results, file)
 
-    return True
+    return
 
 
-def analyze_image(img_path, mask_path):
+def analyze_image(img_path: str, mask_path: str) -> None:
     image = io.imread(img_path)
     mask = io.imread(mask_path)
 
@@ -124,15 +131,26 @@ def analyze_image(img_path, mask_path):
 
         calculate_descriptors(region_img, region_mask, results[id])
 
-    export_results_json(results)
-    export_results_pickle(results)
+    filename = os.path.splitext(os.path.basename(img_path))[0]
+    export_results_json(results, filename)
+    export_results_pickle(results, filename)
+    return
+
+
+def analyze_directory(img_path: str, mask_path: str) -> None:
+    images = sorted(os.listdir(img_path))
+    masks = sorted(os.listdir(mask_path))
+
+    for i in range(len(images)):
+        analyze_image(os.path.join(img_path, images[i]),
+                      os.path.join(mask_path, masks[i]))
     return
 
 
 def main() -> bool:
-    img_path = "./tests/testdata/cell_img.tif"\
+    img_path = "./tests/testdata/images"\
         if len(sys.argv) < 3 else sys.argv[1]
-    mask_path = "./tests/testdata/cell_mask.tif"\
+    mask_path = "./tests/testdata/masks"\
         if len(sys.argv) < 3 else sys.argv[2]
 
     if (not os.path.exists(img_path)):
@@ -143,8 +161,17 @@ def main() -> bool:
         print(f"The path {mask_path} does not exists")
         return False
 
-    analyze_image(img_path, mask_path)
-    return
+    if (os.path.isdir(img_path) and os.path.isdir(mask_path)):
+        analyze_directory(img_path, mask_path)
+
+    elif (os.path.isfile(img_path) and os.path.isfile(mask_path)):
+        analyze_image(img_path, mask_path)
+
+    else:
+        print("Both directories must be files or both must be directories.")
+        return False
+
+    return True
 
 
 if __name__ == '__main__':
