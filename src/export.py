@@ -22,6 +22,7 @@ import skimage.measure as measure
 import numpy as np
 
 from DescriptorLib import descriptor_provider
+from skimage import img_as_ubyte
 from typing import Any, Dict
 
 """
@@ -30,6 +31,10 @@ TODO:
 - create options and flags
 - analyze whole directories
 """
+
+EXPORT_JSON = 1
+EXPORT_PICKLE = 1
+EXPORT_REGION_IMGS = 1
 
 
 def calculate_descriptors(image: np.ndarray,
@@ -50,8 +55,7 @@ def calculate_descriptors(image: np.ndarray,
     return True
 
 
-def dict_elements_to_string(dictionary: Dict[str, Any],
-                            show_types: bool = False) -> Dict[str, Any]:
+def dict_elements_to_string(dictionary: Dict[str, Any]) -> Dict[str, Any]:
     """
     Transforms all values that are not JSON seriazable into a tuple of orignal
     type and string value.
@@ -62,22 +66,19 @@ def dict_elements_to_string(dictionary: Dict[str, Any],
 
     for key, value in dictionary.items():
         if isinstance(value, Dict):
-            new_dictionary[key] = dict_elements_to_string(dictionary[key],
-                                                          show_types)
+            new_dictionary[key] = dict_elements_to_string(dictionary[key])
 
         elif not type(value) in [str, int, float, bool, list]:
-            x = str(value)
-            new_dictionary[key] = (str(type(value)).split("\'")[1], x)\
-                if show_types else x
+            new_dictionary[key] = str(value)
         else:
             new_dictionary[key] = value
 
     return new_dictionary
 
 
-def export_results_json(results: Dict[str, Any],
-                        filename: str = "output",
-                        directory: str = "output") -> None:
+def export_to_json(results: Dict[str, Any],
+                   filename: str,
+                   directory: str) -> None:
     """
     Exports results into a JSON file.
     """
@@ -85,27 +86,68 @@ def export_results_json(results: Dict[str, Any],
     string_results = dict_elements_to_string(results)
     content = json.dumps(string_results, indent=4)
 
-    if (not os.path.exists(directory)):
-        os.mkdir(directory)
-
     with open(f"{directory}/{filename}.json", "w") as file:
         file.write(content)
 
     return
 
 
-def export_results_pickle(results: Dict[str, Any],
-                          filename: str = "output",
-                          directory: str = "output") -> None:
+def export_to_pickle(results: Dict[str, Any],
+                     filename: str,
+                     directory: str) -> None:
     """
     Exports results into a pickle file.
     """
 
-    if (not os.path.exists(directory)):
-        os.mkdir(directory)
-
     with open(f"{directory}/{filename}.pkl", "wb") as file:
         pickle.dump(results, file)
+
+    return
+
+
+def export_region_images(results: Dict[str, Any],
+                         image: Any,
+                         mask: Any,
+                         frame_directory: str) -> None:
+
+    for id in results.keys():
+        cell_directory = f"{frame_directory}/{id}"
+        if (not os.path.exists(cell_directory)):
+            os.mkdir(cell_directory)
+
+        min_row, min_col, max_row, max_col = results[id]["bbox"]
+        region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
+        region_mask = img_as_ubyte((region_mask == id).astype(bool))
+        region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
+        region_img[region_mask == 0] = 0
+        io.imsave(f"{cell_directory}/image.tiff", region_img)
+        io.imsave(f"{cell_directory}/mask.tiff", region_mask)
+    return
+
+
+def export_results(results: Dict[str, Any],
+                   image: Any,
+                   mask: Any,
+                   filename: str = "output",
+                   set_directory: str = "output") -> None:
+
+    # set directory
+    if (not os.path.exists(set_directory)):
+        os.mkdir(set_directory)
+
+    # frame directory
+    frame_directory = f"{set_directory}/{filename}"
+    if (not os.path.exists(frame_directory)):
+        os.mkdir(frame_directory)
+
+    if EXPORT_JSON:
+        export_to_json(results, filename, frame_directory)
+
+    if EXPORT_PICKLE:
+        export_to_pickle(results, filename, frame_directory)
+
+    if EXPORT_REGION_IMGS:
+        export_region_images(results, image, mask, frame_directory)
 
     return
 
@@ -124,6 +166,9 @@ def analyze_image(img_path: str, mask_path: str) -> None:
         results[id] = {}
         results[id]["bbox"] = region.bbox
 
+        # ešte je možné na optimalizáciu ukladať obrázky do results pod labels
+        # a potom ich nie je potrebné znovú kopírovať v export_region_images
+        # a ak passne referenciu na pole, tak to bude kinda good
         min_row, min_col, max_row, max_col = region.bbox
         region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
         region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
@@ -132,8 +177,8 @@ def analyze_image(img_path: str, mask_path: str) -> None:
         calculate_descriptors(region_img, region_mask, results[id])
 
     filename = os.path.splitext(os.path.basename(img_path))[0]
-    export_results_json(results, filename)
-    export_results_pickle(results, filename)
+
+    export_results(results, image, mask, filename)
     return
 
 
@@ -168,7 +213,8 @@ def main() -> bool:
         analyze_image(img_path, mask_path)
 
     else:
-        print("Both directories must be files or both must be directories.")
+        print("Both paths must lead to files"
+              "or both must lead to directories.")
         return False
 
     return True
