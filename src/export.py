@@ -25,6 +25,7 @@ from DescriptorLib import descriptor_provider
 from skimage import img_as_ubyte
 from typing import Any, Dict
 
+from tqdm import tqdm
 """
 TODO:
 
@@ -186,7 +187,7 @@ def analyze_directory(img_path: str, mask_path: str) -> None:
     images = sorted(os.listdir(img_path))
     masks = sorted(os.listdir(mask_path))
 
-    for i in range(len(images)):
+    for i in tqdm(range(len(images))):
         analyze_image(os.path.join(img_path, images[i]),
                       os.path.join(mask_path, masks[i]))
     return
