@@ -326,7 +326,7 @@ class GlcmFeatures(DescriptorBase):
         matrix = matrix[1:, 1:, :, :]  # throw away zeros
         return matrix
 
-    def GlcmFeatures(self, matrix: np.array, mean: bool = False) -> dict:
+    def GlcmFeatures(self, matrix: np.array, mean: bool = True) -> dict:
         """
             Computes the descriptors of the co-ocurrence matrix.
             - matrix: glcm matrix
