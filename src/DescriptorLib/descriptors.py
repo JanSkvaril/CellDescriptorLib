@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import moment, gmean, skew, kurtosis, entropy
 from skimage.measure import moments_central, moments_hu, moments, \
-    perimeter  # , regionprops
+    perimeter, regionprops
 from skimage.feature import graycomatrix, graycoprops
 from skimage.morphology import closing, opening, disk, convex_hull_image
 from skimage.filters import window
@@ -78,8 +78,11 @@ class MaskDecriptors(DescriptorBase):
         result["area"] = np.count_nonzero(mask)
         result["perimeter"] = perimeter(mask)
         result["convex_perimeter"] = perimeter(convex_hull_image(mask))
-        result["major_axis"] = 0
-        result["minor_axis"] = 0
+
+        props = regionprops(mask)[0]
+
+        result["major_axis"] = props.axis_major_length
+        result["minor_axis"] = props.axis_minor_length
         result["bbox_size"] = width * height
         result["elongation"] = width / height
 
