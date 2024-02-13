@@ -26,16 +26,19 @@ from skimage import img_as_ubyte
 from typing import Any, Dict
 
 from tqdm import tqdm
+
 """
 TODO:
 
 - create options and flags
-- analyze whole directories
+- optimalize passing/saving cells
+- add more todo
 """
 
 EXPORT_JSON = 1
 EXPORT_PICKLE = 1
 EXPORT_REGION_IMGS = 1
+CROP_REGION_WITH_MASK = 0
 
 
 def calculate_descriptors(image: np.ndarray,
@@ -120,7 +123,10 @@ def export_region_images(results: Dict[str, Any],
         region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
         region_mask = img_as_ubyte((region_mask == id).astype(bool))
         region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
-        region_img[region_mask == 0] = 0
+
+        if CROP_REGION_WITH_MASK:
+            region_img[region_mask == 0]
+
         io.imsave(f"{cell_directory}/image.tiff", region_img)
         io.imsave(f"{cell_directory}/mask.tiff", region_mask)
     return
@@ -167,9 +173,6 @@ def analyze_image(img_path: str, mask_path: str) -> None:
         results[id] = {}
         results[id]["bbox"] = region.bbox
 
-        # ešte je možné na optimalizáciu ukladať obrázky do results pod labels
-        # a potom ich nie je potrebné znovú kopírovať v export_region_images
-        # a ak passne referenciu na pole, tak to bude kinda good
         min_row, min_col, max_row, max_col = region.bbox
         region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
         region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
