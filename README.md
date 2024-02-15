@@ -1,4 +1,4 @@
-# Cell Descriptor
+# Cell Descriptor Lib
 The Cell Descriptor Library serves as a tool designed to streamline the analysis of diverse descriptors, including mask descriptors and texture descriptors, within 2D+t datasets of cells. Examples of such datasets can be found at Cell Tracking Challenge (http://celltrackingchallenge.net/). This project was developed during PV162 course at FI MUNI.
 
 ![alt text](modules.png)
