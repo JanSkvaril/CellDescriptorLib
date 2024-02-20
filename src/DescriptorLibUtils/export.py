@@ -35,6 +35,12 @@ TODO:
 - add more todo
 """
 
+# so the full numpy array is printed
+np.set_printoptions(threshold=np.inf)
+
+# you can edit these "flags" according
+# to your expectations :)
+
 EXPORT_JSON = 1
 EXPORT_PICKLE = 1
 EXPORT_REGION_IMGS = 1
@@ -218,7 +224,7 @@ def main() -> bool:
 
     else:
         print("Both paths must lead to files"
-              "or both must lead to directories.")
+              " or both must lead to directories.")
         return False
 
     return True
