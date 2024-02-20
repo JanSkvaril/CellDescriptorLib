@@ -1,6 +1,6 @@
 import os
 import matplotlib as mpl
-import matplotlib.artist as art
+# import matplotlib.artist as art
 import matplotlib.pyplot as plt
 import skimage.io as io
 
@@ -72,13 +72,13 @@ class FramesUtils:
 
 def print_help():
     text = """
-    OH MY GOD
-    HELP ME
+    Click on a cell in the segmentation image to show details.
 
     keys:
-    p ... previous data set frame
-    n ... next data set frame
+    p ... previous dataset/cell frame
+    n ... next dataset/cell frame
     h ... help
+    t ... shows timeline of a scalar descriptor (works only in scalar descriptor figure)
     """
     print(text)
 
@@ -107,10 +107,11 @@ def create_menu() -> None:
 def update_cell_window():
     if utilizer.cell_window_stat is CLOSED:
         print("initializing window")
-        utilizer.cell_fig, utilizer.cell_ax = plt.subplots(1, 2)
+        utilizer.cell_fig, utilizer.cell_ax = plt.subplots(1, 3)
         utilizer.cell_window_stat = OPEN
         utilizer.cell_fig.canvas.mpl_connect('key_press_event', onkey)
         utilizer.cell_fig.canvas.mpl_connect('close_event', closed_window)
+        utilizer.cell_ax[0].axis("off")
         plt.show()
 
     # if utilizer.cell_menu is not None:
@@ -118,8 +119,8 @@ def update_cell_window():
 
     image_cell, mask_cell = explorer.GetCellAtFrame(utilizer.cell_frame,
                                                     utilizer.cell_label)
-    utilizer.cell_ax[0].imshow(image_cell, cmap='gray')
-    utilizer.cell_ax[1].imshow(mask_cell)
+    utilizer.cell_ax[1].imshow(image_cell, cmap='gray')
+    utilizer.cell_ax[2].imshow(mask_cell)
     create_menu()
     utilizer.cell_fig.suptitle(
         f"Frame: {utilizer.cell_frame + 1}/{utilizer.total_frames}"
