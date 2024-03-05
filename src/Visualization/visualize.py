@@ -12,20 +12,10 @@ CLOSED = 0
 
 """
 TO-DO:
-    - when cell window is open, list descriptors in a menu:
-        • MaskDecriptors
-        • HistogramDescriptors
-        • Moments
-        • MomentsCentral
-        • MomentsHu
-        • GlcmFeatures
-        • Granulometry
-        • PowerSpectrum
-        • Autocorrelation
-        • LocalBinaryPattern
     - implement visualization of some descriptors
     mentioned above
-    - fix counting frames (move frame counter functions to ifs)
+    - fix problems when having more cells open
+    (actually i cannot have more cells open right now :)
 """
 
 
@@ -78,7 +68,8 @@ def print_help():
     p ... previous dataset/cell frame
     n ... next dataset/cell frame
     h ... help
-    t ... shows timeline of a scalar descriptor (works only in scalar descriptor figure)
+    t ... shows timeline of a scalar descriptor
+          (works only in scalar descriptor figure)
     """
     print(text)
 
@@ -100,8 +91,10 @@ def update_frame_window():
 
 
 def create_menu() -> None:
-    data = explorer.GetDescriptorsForCell(utilizer.frame, utilizer.cell_label)
-    utilizer.cell_menu = Menu(utilizer.cell_fig, data)
+    utilizer.cell_menu = Menu(
+        utilizer,
+        explorer
+    )
 
 
 def update_cell_window():
@@ -112,6 +105,7 @@ def update_cell_window():
         utilizer.cell_fig.canvas.mpl_connect('key_press_event', onkey)
         utilizer.cell_fig.canvas.mpl_connect('close_event', closed_window)
         utilizer.cell_ax[0].axis("off")
+        create_menu()
         plt.show()
 
     # if utilizer.cell_menu is not None:
@@ -121,7 +115,6 @@ def update_cell_window():
                                                     utilizer.cell_label)
     utilizer.cell_ax[1].imshow(image_cell, cmap='gray')
     utilizer.cell_ax[2].imshow(mask_cell)
-    create_menu()
     utilizer.cell_fig.suptitle(
         f"Frame: {utilizer.cell_frame + 1}/{utilizer.total_frames}"
     )
@@ -130,6 +123,7 @@ def update_cell_window():
 
 
 def onkey(event):
+
     if event.key == "n":
         utilizer.IncreaseCellFrame()
         if event.canvas == utilizer.frame_fig.canvas:
@@ -164,7 +158,7 @@ def onclick(event):
 
                 update_cell_window()
                 print("(x={}, y={}): {} {}".format(x, y,
-                                                   "klik na bunku :)",
+                                                   "klik na bunku ",
                                                    utilizer.cell_label))
 
 

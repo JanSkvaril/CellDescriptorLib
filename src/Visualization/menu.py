@@ -1,15 +1,17 @@
 import matplotlib.pyplot as plt
 
-import pickle
+import matplotlib.colors as colors
 import matplotlib.artist as artist
 import matplotlib.patches as patches
 from matplotlib.transforms import IdentityTransform
 
-from DescriptorLib import DescriptorType
+# from DescriptorLib import DescriptorType
+# from DescriptorLibUtils import DataExplorer
+# from Visualization import FramesUtils
 
 
 class ItemProperties:
-    def __init__(self, fontsize=14, labelcolor='black', bgcolor='yellow',
+    def __init__(self, fontsize=10, labelcolor='black', bgcolor='yellow',
                  alpha=1.0):
         self.fontsize = fontsize
         self.labelcolor = labelcolor
@@ -86,18 +88,19 @@ class MenuItem(artist.Artist):
 
 
 class Menu:
-    def __init__(self, fig, data):
-        self.fig = fig
-        self.data = data
+    def __init__(self, utiliser, explorer):
+        self.utiliser = utiliser
+        self.explorer = explorer
 
-        self.menuitems = self.create_menu_items(data)
+        self.fig = utiliser.cell_fig
+        self.menuitems = self.create_menu_items()
 
         maxw = max(item.text_bbox.width for item in self.menuitems)
         maxh = max(item.text_bbox.height for item in self.menuitems)
         depth = max(-item.text_bbox.y0 for item in self.menuitems)
 
         x0 = 50
-        y0 = 500
+        y0 = 400
 
         width = maxw + 2*MenuItem.padx
         height = maxh + MenuItem.pady
@@ -108,10 +111,10 @@ class Menu:
 
             item.set_extent(left, bottom, width, height, depth)
 
-            fig.artists.append(item)
+            self.fig.artists.append(item)
             y0 -= (maxh + MenuItem.pady)
 
-        fig.canvas.mpl_connect('motion_notify_event', self.on_move)
+        self.fig.canvas.mpl_connect('motion_notify_event', self.on_move)
 
     def on_move(self, event):
         if any(item.set_hover(event) for item in self.menuitems):
@@ -121,28 +124,30 @@ class Menu:
         for menuitem in self.menuitems:
             menuitem.remove()
 
-    def create_menu_items(self, data):
+    def create_menu_items(self):
         menuitems = []
-        keys = data.keys()
+        keys = self.explorer.GetDescriptorsForCell(self.utiliser.cell_frame,
+                                                   self.utiliser.cell_label
+                                                   ).keys()
 
         props = ItemProperties(labelcolor='black', bgcolor='yellow',
-                               fontsize=15, alpha=0.2)
+                               fontsize=10, alpha=0.2)
         hoverprops = ItemProperties(labelcolor='white', bgcolor='blue',
-                                    fontsize=15, alpha=0.2)
+                                    fontsize=10, alpha=0.2)
 
         for label in keys:
             if label == 'Mask descriptors':
                 item = MenuItem(self.fig, label, props=props,
                                 hoverprops=hoverprops,
-                                on_select=mask_descriptors_plot)
+                                on_select=self.mask_descriptors_plot)
             elif label == 'Power spectrum':
                 item = MenuItem(self.fig, label, props=props,
                                 hoverprops=hoverprops,
-                                on_select=power_spectrum_plot)
+                                on_select=self.power_spectrum_plot)
             elif label == 'Autocorrelation':
                 item = MenuItem(self.fig, label, props=props,
                                 hoverprops=hoverprops,
-                                on_select=autocorrelation_plot)
+                                on_select=self.autocorrelation_plot)
             else:
                 def on_select(item):
                     print('you selected %s' % item.labelstr)
@@ -152,40 +157,50 @@ class Menu:
             menuitems.append(item)
         return menuitems
 
+    # ON SELECT ACTIONS
+    def mask_descriptors_plot(self, item):
+        mask_descriptors = self.explorer.GetCellDescriptor(
+                                self.utiliser.cell_frame,
+                                self.utiliser.cell_label,
+                                "Mask descriptors"
+                            )[1]
+        print(mask_descriptors)
+        plt.figure()
+        plt.axis("off")
+        labels = list(mask_descriptors.keys())
+        data = []
+        for value in mask_descriptors.values():
+            data.append([value])
+        table = plt.table(cellText=data, rowLabels=labels, loc="center")
+        table.auto_set_column_width(0)
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        plt.show()
 
-with open("output.pkl", "rb") as file:
-    pkl = pickle.load(file)
+    def power_spectrum_plot(self, item):
+        fig, ax = plt.subplots()
+        plt.axis("off")
+        ax.imshow(self.explorer.GetCellDescriptor(self.utiliser.cell_frame,
+                                                  self.utiliser.cell_label,
+                                                  "Power spectrum")[1],
+                  cmap='gray',
+                  norm=colors.LogNorm())
+        plt.show()
 
-mask_descriptors = pkl[1]["Mask descriptors"][1]
-data = {}
-
-
-def mask_descriptors_plot(item):
-    plt.figure()
-    plt.axis("off")
-    labels = list(mask_descriptors.keys())
-    data = []
-    for value in mask_descriptors.values():
-        data.append([value])
-    table = plt.table(cellText=data, rowLabels=labels, loc="center")
-    table.auto_set_column_width(0)
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    plt.show()
-
-
-def power_spectrum_plot(item):
-    fig, ax = plt.subplots()
-    plt.axis("off")
-    ax.imshow(data[1]["Power spectrum"][1])
-    plt.show()
+    def autocorrelation_plot(self, item):
+        fig, ax = plt.subplots()
+        plt.axis("off")
+        ax.imshow(self.explorer.GetCellDescriptor(self.utiliser.cell_frame,
+                                                  self.utiliser.cell_label,
+                                                  "Autocorrelation")[1]
+                  )
+        plt.show()
 
 
-def autocorrelation_plot(item):
-    fig, ax = plt.subplots()
-    plt.axis("off")
-    ax.imshow(pkl[1]["Autocorrelation"][1])
-    plt.show()
+# with open("./output/t000/t000.pkl", "rb") as file:
+#     pkl = pickle.load(file)
 
-# menu = Menu(fig, menuitems)
+# mask_descriptors = pkl[1]["Mask descriptors"][1]
+# data = {}
+
 # plt.show()
