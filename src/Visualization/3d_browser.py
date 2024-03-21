@@ -1,20 +1,19 @@
-
-from mayavi import mlab
+import napari
 from skimage import io
+import os
 
-# Load TIFF file
-image = io.imread('./tests/testdata_3d/masks/man_seg000.tif')
+# Directory containing TIFF files
+directory = './tests/testdata_3d/masks'
 
-# Create Mayavi figure
-fig = mlab.figure(bgcolor=(1, 1, 1), size=(800, 600))
+# Get list of TIFF files in the directory
+files = [file for file in os.listdir(directory) if file.endswith('.tif')]
 
-# Create volume visualization
-vol = mlab.pipeline.volume(mlab.pipeline.scalar_field(image))
+# Load all TIFF files into a list
+images = [io.imread(os.path.join(directory, file)) for file in files]
+print(images)
 
-# Adjust volume properties if needed
-vol._volume_property.shade = False  # Turn off shading for better visibility
+# Open Napari viewer with the stack of images
+viewer = napari.view_image(images, name='Stack')
 
-vol._ctf.range = [0, image.max() * 2]  # Doesn't work
-
-# Display result
-mlab.show()
+# Run the viewer
+napari.run()
