@@ -12,18 +12,19 @@ Author: Denisa Rudincová
 Date: 16. 11. 2023
 """
 
-# import argparse
+import argparse
 import os
-import sys
 import json
 import pickle
+import sys
 import skimage.io as io
 import skimage.measure as measure
 import numpy as np
 
 from DescriptorLib import descriptor_provider
+from DescriptorLibUtils import ExportOptions
 from skimage import img_as_ubyte
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from tqdm import tqdm
 
@@ -32,6 +33,7 @@ TODO:
 
 - create options and flags
 - optimalize passing/saving cells
+- parallelize the process
 - add more todo
 """
 
@@ -44,7 +46,11 @@ np.set_printoptions(threshold=np.inf)
 EXPORT_JSON = 1
 EXPORT_PICKLE = 1
 EXPORT_REGION_IMGS = 1
-CROP_REGION_WITH_MASK = 0
+MODE_3D = 0
+REMOVE_BACKGROUND = 0
+CROP_OFFSET = 0
+
+EXPORT_OPTIONS = ExportOptions()
 
 
 def calculate_descriptors(image: np.ndarray,
@@ -130,8 +136,8 @@ def export_region_images(results: Dict[str, Any],
         region_mask = img_as_ubyte((region_mask == id).astype(bool))
         region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
 
-        if CROP_REGION_WITH_MASK:
-            region_img[region_mask == 0]
+        if EXPORT_OPTIONS.get_remove_background():
+            region_img[region_mask == 0] = 0
 
         io.imsave(f"{cell_directory}/image.tiff", region_img)
         io.imsave(f"{cell_directory}/mask.tiff", region_mask)
@@ -153,13 +159,13 @@ def export_results(results: Dict[str, Any],
     if (not os.path.exists(frame_directory)):
         os.mkdir(frame_directory)
 
-    if EXPORT_JSON:
+    if EXPORT_OPTIONS.get_export_json():
         export_to_json(results, filename, frame_directory)
 
-    if EXPORT_PICKLE:
+    if EXPORT_OPTIONS.get_export_pickle():
         export_to_pickle(results, filename, frame_directory)
 
-    if EXPORT_REGION_IMGS:
+    if EXPORT_OPTIONS.get_export_region_imgs():
         export_region_images(results, image, mask, frame_directory)
 
     return
@@ -202,11 +208,67 @@ def analyze_directory(img_path: str, mask_path: str) -> None:
     return
 
 
+def process_arguments() -> Tuple[str, str]:
+    """
+    Processes arguments from the command line.
+
+    Returns the image and mask path.
+    """
+    parser = argparse.ArgumentParser(description="Process arguments.")
+
+    # if no arguments are provided, the script uses testdata
+    if len(sys.argv) == 1:
+        return "./tests/testdata/images", "./tests/testdata/masks"
+
+    # required arguments
+    parser.add_argument("image_path", type=str, help="Path to the image.")
+    parser.add_argument("mask_path", type=str, help="Path to the mask.")
+
+    # optional arguments
+    parser.add_argument("-2D", action="store_true", help="Enable 2D mode.")
+    parser.add_argument("-3D", action="store_true", help="Enable 3D mode.")
+
+    parser.add_argument("-removebg",
+                        action="store_true",
+                        help="Remove the background."
+                             "Background will be set to 0."
+                             "Default is keeping the background.")
+
+    parser.add_argument("-cropoffset",
+                        type=int,
+                        help="Set the crop offset."
+                             "0 means no offset. Default is 0.")
+
+    parser.add_argument("-pickle",
+                        action="store_true",
+                        help="Enable export to pickle.")
+
+    parser.add_argument("-json",
+                        action="store_true",
+                        help="Enable export to json.")
+
+    args = parser.parse_args()
+
+    if args._3D:
+        EXPORT_OPTIONS.set_mode_3d(1)
+
+    if args.removebg:
+        EXPORT_OPTIONS.set_remove_background(1)
+
+    if args.cropoffset:
+        EXPORT_OPTIONS.set_crop_offset(args.cropoffset)
+
+    if args.pickle:
+        EXPORT_OPTIONS.set_export_pickle(1)
+
+    if args.json:
+        EXPORT_OPTIONS.set_export_json(1)
+
+    return args.image_path, args.mask_path
+
+
 def main() -> bool:
-    img_path = "./tests/testdata/images"\
-        if len(sys.argv) < 3 else sys.argv[1]
-    mask_path = "./tests/testdata/masks"\
-        if len(sys.argv) < 3 else sys.argv[2]
+    img_path, mask_path = process_arguments()
 
     if (not os.path.exists(img_path)):
         print(f"The path {img_path} does not exists")
