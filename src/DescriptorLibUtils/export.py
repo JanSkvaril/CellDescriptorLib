@@ -9,7 +9,7 @@ Usage:
     - (in case of no inputs, script uses testdata)
 
 Author: Denisa Rudincová
-Date: 16. 11. 2023
+Date: 16. 11. 2023 - still working on it :)
 """
 
 import argparse
@@ -65,7 +65,13 @@ def calculate_descriptors(image: np.ndarray,
 
     Returns
     """
-    res = descriptor_provider.ComputeForAll(image, mask)
+
+    # možno by bolo fajn pasnúť tie options,
+    # keďže eventuálne sa z nich bude vyberať aj zoznam
+    # deskriptorov, ktoré sa majú počítať
+    d = 3 if EXPORT_OPTIONS.get_mode_3d() else 2
+    res = descriptor_provider.ComputeForAll(image, mask, d)
+
     for key, value in res.items():
         results[key] = value
     return True
@@ -185,12 +191,15 @@ def analyze_image(img_path: str, mask_path: str) -> None:
         results[id] = {}
         results[id]["bbox"] = region.bbox
 
-        min_row, min_col, max_row, max_col = region.bbox
-        region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
-        region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
-        region_mask = (region_mask == id).astype(int)
+        if EXPORT_OPTIONS.get_mode_3d():
+            pass
+        else:
+            min_row, min_col, max_row, max_col = region.bbox
+            region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
+            region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
+            region_mask = (region_mask == id).astype(int)
 
-        calculate_descriptors(region_img, region_mask, results[id])
+            calculate_descriptors(region_img, region_mask, results[id])
 
     filename = os.path.splitext(os.path.basename(img_path))[0]
 
