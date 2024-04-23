@@ -2,7 +2,7 @@ import unittest
 
 import skimage.io as io
 import skimage as sk
-import DescriptorLib.descriptors as lib
+import DescriptorLib.descriptors2d as lib
 from DescriptorLib import descriptor_provider as dp
 import numpy as np
 import skimage.measure as measure
