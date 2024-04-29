@@ -3,7 +3,7 @@ from math import pi, sqrt
 from scipy.spatial import ConvexHull
 from porespy.metrics import regionprops_3D
 
-from descriptor import DescriptorBase, DescriptorType
+from .descriptor import DescriptorBase, DescriptorType
 
 
 class MaskDescriptors3D(DescriptorBase):
