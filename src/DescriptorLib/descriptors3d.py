@@ -139,8 +139,8 @@ class HistogramDescriptors3D(DescriptorBase):
         - histogram: 1D numpy array, histogram
         Returns a dictionary with the following descriptors:
         - mean
-        - std
-        - var
+        - standard deviation
+        - variance
         - median
         - max
         - min
@@ -151,9 +151,8 @@ class HistogramDescriptors3D(DescriptorBase):
         - kurtosis
         - entropy
         - energy
-        - smoothness
-
     """
+
     def __init__(self, bins: int | None = None):
         self.bins = bins
 
@@ -167,16 +166,63 @@ class HistogramDescriptors3D(DescriptorBase):
     def GetType(self) -> DescriptorType:
         return DescriptorType.DICT_SCALAR
 
+    def getKthMoment(self, k: int, values: np.array, histogram: np.array,
+                     mean: float, count: int) -> float:
+
+        return np.sum(((values - mean) ** k) * histogram) / count
+
     def HistogramDescriptors3D(self,
                                histogram: np.array,
                                bin_edges: np.array) -> dict:
         result = dict()
 
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        result["mean"] = np.sum(bin_centers * histogram) / np.sum(histogram)
-        result["var"] = np.sum(((bin_centers - result["mean"]) ** 2) * histogram) / np.sum(histogram)
+        total_count = np.sum(histogram)
+
+        result["mean"] = np.sum(bin_centers * histogram) / total_count
+
+        moment2 = self.getKthMoment(2, bin_centers, histogram,
+                                    result["mean"], total_count)
+
+        moment3 = self.getKthMoment(3, bin_centers, histogram,
+                                    result["mean"], total_count)
+
+        moment4 = self.getKthMoment(4, bin_centers, histogram,
+                                    result["mean"], total_count)
+
+        result["var"] = moment2
         result["std"] = sqrt(result["var"])
         result["max"] = bin_edges[len(bin_edges) - 1]
         result["min"] = bin_edges[0]
+
+        cumulative_sum = np.cumsum(histogram)
+        median_index = np.argmax(cumulative_sum >= np.sum(histogram) / 2)
+
+        bin_width = bin_edges[1] - bin_edges[0]
+        median_bin_left = bin_edges[median_index]
+        median_bin_count = histogram[median_index]
+
+        total_counts_before_median = 0
+        if median_index > 0:
+            total_counts_before_median = cumulative_sum[median_index - 1]
+
+        result["median"] = median_bin_left + ((total_count / 2
+                                               - total_counts_before_median)
+                                              / median_bin_count) * bin_width
+
+        result["argmax"] = np.argmax(histogram)
+        result["moment3"] = moment3
+
+        total_contribution = np.prod(bin_centers * histogram)
+        result["gmean"] = total_contribution ** (1 / total_count)
+
+        result["skewness"] = moment3 / (result["std"] ** 3)
+        result["kurtosis"] = (moment4 / (result["var"] ** 2)) - 3
+
+        prob_dist = histogram / total_count
+        prob_dist = prob_dist[prob_dist != 0]
+        result["entropy"] = -np.sum(prob_dist * np.log2(prob_dist))
+
+        result["energy"] = np.sum(histogram ** 2)
 
         return result
