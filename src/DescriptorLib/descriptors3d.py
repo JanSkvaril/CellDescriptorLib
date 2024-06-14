@@ -2,6 +2,8 @@ import numpy as np
 from math import pi, sqrt
 from scipy.spatial import ConvexHull
 from porespy.metrics import regionprops_3D
+from skimage.morphology import ball
+from scipy.ndimage import binary_opening
 
 from .descriptor import DescriptorBase, DescriptorType
 
@@ -10,6 +12,7 @@ class MaskDescriptors3D(DescriptorBase):
     """
     Calculates descriptors of the given mask.
         - mask: 3D numpy array, binary mask
+
     Returns a dictionary with the following descriptors:
         - surface area
         - volume
@@ -58,8 +61,10 @@ class MaskDescriptors3D(DescriptorBase):
 class Mean3D(DescriptorBase):
     """
         Calculates the mean of the image within the mask.
+
         - image: 3D numpy array
         - mask: 3D numpy array, binary mask
+
         Returns scalar representing mean.
     """
 
@@ -79,8 +84,10 @@ class Mean3D(DescriptorBase):
 class StdDev3D(DescriptorBase):
     """
         Calculates the standard deviation of the image within the mask.
+
         - image: 3D numpy array
         - mask: 3D numpy array, binary mask
+
         Returns scalar representing standard deviation.
     """
 
@@ -104,10 +111,12 @@ class StdDev3D(DescriptorBase):
 class Histogram3D(DescriptorBase):
     """
         Computes the histogram of the image within the mask.
+
         - image: 3D numpy array
         - mask: 3D numpy array, binary mask
         - bins: number of bins for the histogram, if none, max value of image
           is used
+
         Returns a 1D numpy array with the histogram.
     """
 
@@ -136,7 +145,8 @@ class Histogram3D(DescriptorBase):
 class HistogramDescriptors3D(DescriptorBase):
     """
         Computes the descriptors of the histogram.
-        - histogram: 1D numpy array, histogram
+        - histogram: 1D numpy array
+
         Returns a dictionary with the following descriptors:
         - mean
         - standard deviation
@@ -145,7 +155,6 @@ class HistogramDescriptors3D(DescriptorBase):
         - max
         - min
         - argmax
-        - moment3
         - geometric_mean
         - skewness
         - kurtosis
@@ -211,7 +220,6 @@ class HistogramDescriptors3D(DescriptorBase):
                                               / median_bin_count) * bin_width
 
         result["argmax"] = np.argmax(histogram)
-        result["moment3"] = moment3
 
         total_contribution = np.prod(bin_centers * histogram)
         result["gmean"] = total_contribution ** (1 / total_count)
@@ -226,3 +234,50 @@ class HistogramDescriptors3D(DescriptorBase):
         result["energy"] = np.sum(histogram ** 2)
 
         return result
+
+
+class Granulometry(DescriptorBase):
+    """
+        Creates granulometric curve from values in the image within the mask.
+
+        - image: 3D numpy array
+        - mask: 3D numpy array, binary mask
+        - max_radius: maximum radius of the structuring element,
+        - step: step between sizes of structuring element
+
+        Returns granulometric curve, that shows size distributions of objects
+        in the image.
+    """
+
+    def Eval(self, image: np.array, mask: np.array):
+        return self.Granulometry(image, mask)
+
+    def GetName(self) -> str:
+        return "Granulometry"
+
+    def GetType(self) -> DescriptorType:
+        return DescriptorType.VECTOR
+
+    def Granulometry(self,
+                     image: np.array,
+                     mask: np.array,
+                     max_radius=10,
+                     step=1) -> np.array:
+
+        curve = []
+        init_volume = np.sum(mask)
+
+        for radius in range(0, max_radius, step):
+            st_element = ball(radius)
+            opening = binary_opening(image, structure=st_element)
+            opening[mask == 0] = 0
+
+            opening_volume = np.sum(opening)
+            curve.append(opening_volume - init_volume)
+            init_volume = opening_volume
+
+        curve = np.array(curve)
+        curve = curve - np.min(curve)
+        curve = curve / np.max(curve)
+
+        return curve
