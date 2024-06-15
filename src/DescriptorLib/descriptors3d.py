@@ -4,6 +4,7 @@ from scipy.spatial import ConvexHull
 from porespy.metrics import regionprops_3D
 from skimage.morphology import ball
 from scipy.ndimage import binary_opening
+from skimage.transform import resize
 
 from .descriptor import DescriptorBase, DescriptorType
 
@@ -236,7 +237,7 @@ class HistogramDescriptors3D(DescriptorBase):
         return result
 
 
-class Granulometry(DescriptorBase):
+class Granulometry3D(DescriptorBase):
     """
         Creates granulometric curve from values in the image within the mask.
 
@@ -250,7 +251,7 @@ class Granulometry(DescriptorBase):
     """
 
     def Eval(self, image: np.array, mask: np.array):
-        return self.Granulometry(image, mask)
+        return self.Granulometry3D(image, mask)
 
     def GetName(self) -> str:
         return "Granulometry"
@@ -258,11 +259,11 @@ class Granulometry(DescriptorBase):
     def GetType(self) -> DescriptorType:
         return DescriptorType.VECTOR
 
-    def Granulometry(self,
-                     image: np.array,
-                     mask: np.array,
-                     max_radius=10,
-                     step=1) -> np.array:
+    def Granulometry3D(self,
+                       image: np.array,
+                       mask: np.array,
+                       max_radius=10,
+                       step=1) -> np.array:
 
         curve = []
         init_volume = np.sum(mask)
@@ -281,3 +282,67 @@ class Granulometry(DescriptorBase):
         curve = curve / np.max(curve)
 
         return curve
+
+
+class PowerSpectrum3D(DescriptorBase):
+    """
+        Calculates the power spectrum of the image within the mask.
+
+        - image: 3D numpy array
+        - mask: 3D numpy array, binary mask.
+
+        returns 3D image containg powerscpetrum
+    """
+
+    def Eval(self, image: np.array, mask: np.array) -> np.array:
+        img = np.copy(image)
+        img[mask == 0] = 0
+
+        fft_image = np.fft.fftn(img)
+        power_image = np.abs(fft_image) ** 2
+
+        return np.fft.fftshift(power_image)
+
+    def GetName(self) -> str:
+        return "Power spectrum"
+
+    def GetType(self) -> DescriptorType:
+        return DescriptorType.MATRIX
+
+
+class Autocorrelation3D(DescriptorBase):
+    """
+        Calculates the autocorrelation of the image within the mask.
+
+        - image: 3D numpy array
+        - mask: 3D numpy array, binary mask.
+
+        returns 3D image containg autocorrelation
+    """
+
+    def Eval(self, image: np.array, mask: np.array):
+        return self.Autocorrelation3D(image, mask)
+
+    def GetName(self) -> str:
+        return "Autocorrelation"
+
+    def GetType(self) -> DescriptorType:
+        return DescriptorType.MATRIX
+
+    def Autocorrelation3D(self,
+                          image: np.array,
+                          mask: np.array,
+                          size: int | None = None) -> np.array:
+        src = np.copy(image)
+        src[mask == 0] = 0
+
+        var = np.var(src)
+        data = src - np.mean(src)
+
+        power_img = np.abs(np.fft.fftn(data)) ** 2
+        autocorr_img = np.fft.ifftn(power_img).real / var / np.prod(src.shape)
+
+        if size is not None:
+            autocorr_img = resize(autocorr_img, (size, size, size))
+
+        return autocorr_img
