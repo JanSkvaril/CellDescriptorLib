@@ -346,3 +346,52 @@ class Autocorrelation3D(DescriptorBase):
             autocorr_img = resize(autocorr_img, (size, size, size))
 
         return autocorr_img
+
+
+class LocalBinaryPattern3D(DescriptorBase):
+    """
+        Computes histogram of local binary patterns from image within mask.
+    """
+
+    def __init__(self, radius: int = 3):
+        self.radius = radius
+
+    def Eval(self, image: np.array, mask: np.array):
+        n_points = ((2 * self.radius + 1) ** 3) - 1
+        lbp = self.ComputeLBP3D(image, self.radius)
+
+        hist, _ = Histogram3D(n_points + 1).Eval(lbp, mask)
+        return hist
+
+    def GetName(self) -> str:
+        return "Local binary pattern"
+
+    def GetType(self) -> DescriptorType:
+        return DescriptorType.VECTOR
+
+    def ComputeLBP3D(self, image: np.array, radius: int):
+        depth, rows, cols = image.shape
+        lbp_image = np.zeros((depth, rows, cols))
+
+        offsets = [(dz, dy, dx) for dz in range(-radius, radius + 1)
+                   for dy in range(-radius, radius + 1)
+                   for dx in range(-radius, radius + 1)
+                   if (dz, dy, dx) != (0, 0, 0)]
+
+        for z in range(radius, depth - radius):
+            for i in range(radius, rows - radius):
+                for j in range(radius, cols - radius):
+                    center = image[z, i, j]
+                    binary_pattern = []
+
+                    for dz, dy, dx in offsets:
+                        neighbor = image[z + dz, i + dy, j + dx]
+                        binary_pattern.append(1 if neighbor >= center else 0)
+
+                    lbp_value = 0
+                    for k in range(len(binary_pattern)):
+                        lbp_value += binary_pattern[k] * (2 ** k)
+
+                        lbp_image[z, i, j] = lbp_value
+
+        return lbp_image
