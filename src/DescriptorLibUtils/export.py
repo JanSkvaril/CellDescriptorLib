@@ -137,10 +137,16 @@ def export_region_images(results: Dict[str, Any],
         if (not os.path.exists(cell_directory)):
             os.mkdir(cell_directory)
 
-        min_row, min_col, max_row, max_col = results[id]["bbox"]
-        region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
-        region_mask = img_as_ubyte((region_mask == id).astype(bool))
-        region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
+        if EXPORT_OPTIONS.get_mode_3d():
+            min_z, min_y, min_x, max_z, max_y, max_x = results[id]["bbox"]
+            region_mask = np.copy(mask[min_z:max_z + 1, min_y:max_y + 1, min_x:max_x + 1])
+            region_mask = img_as_ubyte((region_mask == id).astype(bool))
+            region_img = np.copy(image[min_z:max_z + 1, min_y:max_y + 1, min_x:max_x + 1])
+        else: 
+            min_row, min_col, max_row, max_col = results[id]["bbox"]
+            region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
+            region_mask = img_as_ubyte((region_mask == id).astype(bool))
+            region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
 
         if EXPORT_OPTIONS.get_remove_background():
             region_img[region_mask == 0] = 0
@@ -172,9 +178,6 @@ def export_results(results: Dict[str, Any],
         export_to_pickle(results, filename, frame_directory)
 
     if EXPORT_OPTIONS.get_export_region_imgs():
-        if EXPORT_OPTIONS.get_mode_3d():
-            print("Exporting regions has not been implemented for 3D mode yet.")
-            return # not implemented yet
         export_region_images(results, image, mask, frame_directory)
 
     return
