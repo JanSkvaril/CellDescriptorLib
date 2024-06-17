@@ -172,6 +172,9 @@ def export_results(results: Dict[str, Any],
         export_to_pickle(results, filename, frame_directory)
 
     if EXPORT_OPTIONS.get_export_region_imgs():
+        if EXPORT_OPTIONS.get_mode_3d():
+            print("Exporting regions has not been implemented for 3D mode yet.")
+            return # not implemented yet
         export_region_images(results, image, mask, frame_directory)
 
     return
@@ -192,15 +195,15 @@ def analyze_image(img_path: str, mask_path: str) -> None:
         results[id]["bbox"] = region.bbox
 
         if EXPORT_OPTIONS.get_mode_3d():
-            pass
+            min_z, min_y, min_x, max_z, max_y, max_x = region.bbox
+            region_img = np.copy(image[min_z:max_z + 1, min_y:max_y + 1, min_x:max_x + 1])
+            region_mask = np.copy(mask[min_z:max_z + 1, min_y:max_y + 1, min_x:max_x + 1])
         else:
             min_row, min_col, max_row, max_col = region.bbox
             region_img = np.copy(image[min_row:max_row + 1, min_col:max_col + 1])
             region_mask = np.copy(mask[min_row:max_row + 1, min_col:max_col + 1])
-            region_mask = (region_mask == id).astype(int)
-
-            calculate_descriptors(region_img, region_mask, results[id])
-
+        region_mask = (region_mask == id).astype(int)
+        calculate_descriptors(region_img, region_mask, results[id])
     filename = os.path.splitext(os.path.basename(img_path))[0]
 
     export_results(results, image, mask, filename)
@@ -234,8 +237,8 @@ def process_arguments() -> Tuple[str, str]:
     parser.add_argument("mask_path", type=str, help="Path to the mask.")
 
     # optional arguments
-    parser.add_argument("-2D", action="store_true", help="Enable 2D mode.")
-    parser.add_argument("-3D", action="store_true", help="Enable 3D mode.")
+    parser.add_argument("-D2", action="store_true", help="Enable 2D mode.")
+    parser.add_argument("-D3", action="store_true", help="Enable 3D mode.")
 
     parser.add_argument("-removebg",
                         action="store_true",
@@ -248,6 +251,10 @@ def process_arguments() -> Tuple[str, str]:
                         help="Set the crop offset."
                              "0 means no offset. Default is 0.")
 
+    parser.add_argument("-regionexport",
+                        action="store_true",
+                        help="Enable export of cropped regions of image.")
+
     parser.add_argument("-pickle",
                         action="store_true",
                         help="Enable export to pickle.")
@@ -258,7 +265,7 @@ def process_arguments() -> Tuple[str, str]:
 
     args = parser.parse_args()
 
-    if args._3D:
+    if args.D3:
         EXPORT_OPTIONS.set_mode_3d(1)
 
     if args.removebg:
@@ -272,6 +279,9 @@ def process_arguments() -> Tuple[str, str]:
 
     if args.json:
         EXPORT_OPTIONS.set_export_json(1)
+
+    if args.regionexport:
+        EXPORT_OPTIONS.set_export_region_imgs(1)
 
     return args.image_path, args.mask_path
 

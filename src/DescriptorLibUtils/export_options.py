@@ -6,7 +6,7 @@ class ExportOptions:
     def __init__(self):
         self.__export_json = 1
         self.__export_pickle = 1
-        self.__export_region_imgs = 1
+        self.__export_region_imgs = 0
         self.__mode_3d = 0
         self.__remove_background = 0
         self.__crop_offset = 0

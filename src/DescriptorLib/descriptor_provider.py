@@ -2,7 +2,8 @@ import numpy as np
 from .descriptors2d import MaskDecriptors, HistogramDescriptors, \
     Moments, MomentsCentral, MomentsHu, GlcmFeatures, Granulometry, \
     PowerSpectrum, Autocorrelation, LocalBinaryPattern, GaborEnergy
-# from .descriptors3d import MaskDescriptors3D
+from .descriptors3d import MaskDescriptors3D, HistogramDescriptors3D, \
+    Granulometry3D, Autocorrelation3D, LocalBinaryPattern3D
 
 
 def GetAll(d: int = 2) -> list:
@@ -26,8 +27,12 @@ def GetAll(d: int = 2) -> list:
         desc.append(GaborEnergy())
         # desc.append(GaborSpectralHistogram())
 
-    # if d == 3:
-    #     desc.append(MaskDescriptors3D())
+    if d == 3:
+        desc.append(MaskDescriptors3D())
+        desc.append(HistogramDescriptors3D())
+        desc.append(Granulometry3D())
+        desc.append(Autocorrelation3D())
+        desc.append(LocalBinaryPattern3D())
     return desc
 
 
@@ -38,6 +43,6 @@ def ComputeForAll(image: np.array, mask: np.array, d: int = 2) -> dict:
     (type, result)
     """
     results = {}
-    for desc in GetAll():
+    for desc in GetAll(d):
         results[desc.GetName()] = (desc.GetType(), desc.Eval(image, mask))
     return results
