@@ -580,3 +580,134 @@ class HuMoments(DescriptorBase):
 
     def GetType(self) -> DescriptorType:
         return DescriptorType.DICT_SCALAR
+
+
+class GlcmFeatures(DescriptorBase):
+    """
+        Computes the descriptors of the co-ocurrence matrix for a given delta
+        (defaults to (x, y, z) = (1, 1, 1)) and distance to check
+        for neighbouring channel (defaults to 1)
+        - image: 3D numpy array
+        - mask: 3D numpy array, binary mask
+        - delta: (optional) tuple[int, int, int]
+        - distance: (optional) int
+
+        Returns a dictionary with the following descriptors:
+        - energy
+        - entropy
+        - contrast
+        - homogeneity
+        - correlation
+        - shade
+        - prominence
+    """
+
+    def __init__(self, delta: tuple[int] = (1, 1, 1), distance: int = 1):
+        self.delta = delta
+        self.distance = distance
+
+    def Eval(self, image: np.array, mask: np.array):
+        glcm = self.Glcm(image, mask)
+        return self.GlcmFeatures(glcm)
+
+    def Glcm(self, image: np.array, mask: np.array) -> np.array:
+        """
+            Creates gray level co-ocurrence matrix from values in mask.
+            - image: 2D numpy array, with values ranging from 0 to 255
+            - mask: 2D numpy array, binary mask
+            Returns co-ocurrence matrix
+        """
+        copy = np.copy(image).astype(np.uint8)
+        copy[mask == 0] = 0
+
+        offset = (self.delta[0] * self.distance,
+                  self.delta[1] * self.distance,
+                  self.delta[2] * self.distance)
+
+        x_max, y_max, z_max = image.shape
+
+        levels = copy.max() + 1
+
+        matrix = np.zeros((levels, levels))
+
+        for (x, y, z), v in np.ndenumerate(copy):
+            x_offset = x + offset[0]
+            y_offset = y + offset[1]
+            z_offset = z + offset[2]
+
+            if (x_offset >= x_max) or (y_offset >= y_max) or (z_offset >=
+                                                              z_max):
+                continue
+
+            value_at_offset = copy[x_offset, y_offset, z_offset]
+
+            matrix[v, value_at_offset] += 1
+
+        return matrix
+
+    def sgn(self, x: int) -> int:
+        if x > 0:
+            return 1
+        elif x < 0:
+            return -1
+        else:
+            return 0
+
+    def GlcmFeatures(self, matrix: np.array, mean: bool = True) -> dict:
+        """
+            Computes the descriptors of the normalized co-ocurrence matrix.
+            - matrix: glcm matrix
+            - mean: if true, returns the mean of the descriptors
+            Returns a dictionary with the following descriptors:
+            - energy
+            - entropy
+            - contrast
+            - homogeneity
+            - correlation
+            - shade
+            - prominence
+        """
+        result = dict()
+
+        matrix = matrix + np.transpose(matrix)
+        matrix = matrix / np.sum(matrix)
+        matrix_nonzero = matrix + 1e-10
+
+        result['energy'] = np.sum(matrix ** 2)
+        result['entropy'] = - np.sum(np.log(matrix_nonzero) * matrix_nonzero)
+        result['contrast'] = np.sum([p * (i - j) ** 2 for (i, j), p
+                                     in np.ndenumerate(matrix)])
+        result['homogenity'] = np.sum([p / (1 + (i - j) ** 2) for (i, j), p
+                                       in np.ndenumerate(matrix)])
+
+        glcm_mean_i = np.sum([i * p for (i, _), p in np.ndenumerate(matrix)])
+        glcm_mean_j = np.sum([j * p for (_, j), p in np.ndenumerate(matrix)])
+        glcm_mean = (glcm_mean_i + glcm_mean_j) / 2
+
+        variance = np.sum([p * (i - glcm_mean_i) ** 2
+                           for (i, j), p in np.ndenumerate(matrix)])
+        correlation = np.sum([(i - glcm_mean_i) * (j - glcm_mean_j) * p /
+                              variance
+                              for (i, j), p in np.ndenumerate(matrix)])
+
+        result['correlation'] = correlation
+
+        sigma3 = np.sum([((i - glcm_mean) ** 3 * p) / (variance ** (3/2))
+                         for (i, _), p in np.ndenumerate(matrix)])
+        A = np.sum([((i + j - 2 * glcm_mean) ** 3 * p) /
+                    (sigma3 * (sqrt(2 * (1 + correlation))) ** 3)
+                    for (i, j), p in np.ndenumerate(matrix)])
+        result['shade'] = self.sgn(A) * abs(A) ** (1/3)
+
+        B = np.sum([((i + j - 2 * glcm_mean) ** 4 * p) /
+                    (4 * variance ** 2 * (1 + correlation) ** 2)
+                    for (i, j), p in np.ndenumerate(matrix)])
+        result['prominence'] = self.sgn(B) * abs(B) ** (1/4)
+
+        return result
+
+    def GetName(self) -> str:
+        return "Glcm features"
+
+    def GetType(self) -> DescriptorType:
+        return DescriptorType.DICT_SCALAR
