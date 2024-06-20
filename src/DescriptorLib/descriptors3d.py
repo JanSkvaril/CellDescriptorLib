@@ -500,3 +500,83 @@ class CentralMoments(DescriptorBase):
 
     def GetType(self) -> DescriptorType:
         return DescriptorType.DICT_SCALAR
+
+
+class HuMoments(DescriptorBase):
+    """
+        Calculates the first seven Hu moments of the image within the mask.
+        - image: 3D numpy array
+        - mask: 3D numpy array, binary mask
+
+        Returns a dictionary containing the first seven Hu Moments,
+        stored as keys 'hu1' to 'hu7'.
+    """
+
+    def Eval(self, image: np.array, mask: np.array):
+        copy = np.copy(image)
+        copy[mask == 0] = 0
+        result = dict()
+
+        central_normalized_moments = CentralMoments(3, True)
+        cnm = central_normalized_moments.Eval()
+
+        result['hu1'] = cnm['200'] + cnm['020'] + cnm['002']
+        result['hu2'] = (cnm['200'] - cnm['020']) ** 2 + \
+                        (2 * cnm['110']) ** 2 + \
+                        (cnm['002'] - cnm['020']) ** 2 + \
+                        (2 * cnm['101']) ** 2 + \
+                        (cnm['111']) ** 2
+
+        result['hu3'] = (cnm['300'] - 3 * cnm['120']) ** 2 + \
+                        (3 * cnm['210'] - cnm['030']) ** 2 + \
+                        (3 * (cnm['201'] - cnm['021'])) ** 2 + \
+                        (cnm['003'] - 3 * cnm['012']) ** 2
+
+        result['hu4'] = (cnm['300'] + cnm['120']) ** 2 + \
+                        (cnm['210'] + cnm['030']) ** 2 + \
+                        (cnm['201'] + cnm['021']) ** 2 + \
+                        (cnm['003'] + cnm['012']) ** 2
+
+        result['hu5'] = (cnm['300'] - 3 * cnm['120']) * \
+                        (cnm['300'] + cnm['120']) * \
+                        ((cnm['210'] + cnm['201']) ** 2 - 3 *
+                         (cnm['030'] + cnm['012']) ** 2) + \
+                        (3 * cnm['210'] - cnm['030']) * \
+                        (cnm['201'] + cnm['021']) * \
+                        (3 * (cnm['120'] + cnm['003']) ** 2 -
+                         (cnm['021'] + cnm['012']) ** 2)
+
+        result['hu6'] = (cnm['200'] - cnm['020']) * \
+                        ((cnm['300'] + cnm['030']) ** 2 -
+                         (cnm['210'] + cnm['201']) ** 2 +
+                         4 * cnm['111'] * (cnm['300'] + cnm['030']) *
+                         (cnm['210'] + cnm['201'])) + 4 * cnm['110'] * \
+                        (cnm['300'] + cnm['030']) * \
+                        (cnm['210'] + cnm['201']) + 4 * cnm['101'] * \
+                        (cnm['030'] + cnm['003']) * \
+                        (cnm['120'] + cnm['012']) + \
+                        (cnm['003'] - 3 * cnm['120']) * \
+                        (cnm['210'] + cnm['120']) * \
+                        (3 * (cnm['030'] + cnm['012']) ** 2 -
+                         (cnm['021'] + cnm['003']) ** 2)
+
+        result['hu7'] = (3 * cnm['210'] - cnm['201']) * \
+                        (cnm['300'] + cnm['030']) * \
+                        ((cnm['300'] + cnm['030']) ** 2 -
+                            3 * (cnm['210'] + cnm['201']) ** 2) - \
+                        (cnm['120'] - 3 * cnm['012']) * \
+                        (cnm['210'] + cnm['201']) * \
+                        (3 * (cnm['120'] + cnm['003']) ** 2 -
+                            (cnm['021'] + cnm['012']) ** 2) + \
+                        (3 * cnm['021'] - cnm['003']) * \
+                        (cnm['030'] + cnm['003']) * \
+                        ((cnm['030'] + cnm['003']) ** 2 -
+                            3 * (cnm['021'] + cnm['012']) ** 2)
+
+        return result
+
+    def GetName(self) -> str:
+        return "HuMoments"
+
+    def GetType(self) -> DescriptorType:
+        return DescriptorType.DICT_SCALAR
