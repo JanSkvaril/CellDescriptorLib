@@ -395,3 +395,108 @@ class LocalBinaryPattern3D(DescriptorBase):
                         lbp_image[z, i, j] = lbp_value
 
         return lbp_image
+
+
+class RawMoments(DescriptorBase):
+    """
+        Calculates the moments up to given order or default 4th order
+        of the image within the mask.
+        - image: 3D numpy array
+        - mask: 3D numpy array, binary mask
+        - order: (optional) int
+
+        Returns a dictionary with the following descriptors:
+        - moments for the corresponding key tuple (p, q, r) representing
+          the orders along the x, y, and z axes.
+    """
+
+    def __init__(self, order: int = 4):
+        self.order = order
+
+    def Eval(self, image: np.array, mask: np.array):
+        copy = np.copy(image)
+        copy[mask == 0] = 0
+
+        indices = np.indices(mask.shape)
+        moments = dict()
+
+        for p in range(self.order + 1):
+            for q in range(self.order + 1):
+                for r in range(self.order + 1):
+                    if p + q + r <= self.order:
+                        moment = np.sum((indices[0] ** p) * (indices[1] ** q) *
+                                        (indices[2] ** r) * copy)
+                        moments[f'{p}{q}{r}'] = moment
+
+        return moments
+
+    def GetName(self) -> str:
+        return "RawMoments"
+
+    def GetType(self) -> DescriptorType:
+        return DescriptorType.DICT_SCALAR
+
+
+class CentralMoments(DescriptorBase):
+    """
+        Calculates the centroids and central moments from the 2nd up to
+        the given order or defaults to the 4th order of the image within
+        the mask. Moments are defaulted not to be normalized unless specified
+        otherwise.
+
+        Parameters:
+        - image: 3D numpy array
+        - mask: 3D numpy array, binary mask
+        - order: (optional) int
+        - normalize: (optional) bool
+
+        Returns a dictionary with the following descriptors:
+        - moments for the corresponding key tuple (p, q, r) representing
+          the orders along the x, y, and z axes.
+        - centroid_x
+        - centroid_y
+        - centroid_z
+    """
+
+    def __init__(self, order: int = 4, normalize: bool = False):
+        self.order = order
+        self.normalize = normalize
+
+    def Eval(self, image: np.array, mask: np.array):
+        copy = np.copy(image)
+        copy[mask == 0] = 0
+
+        indices = np.indices(mask.shape)
+        central_moments = dict()
+
+        zero_moment = np.sum(copy)
+        centroid_x = np.sum(indices[0] * copy) / zero_moment
+        centroid_y = np.sum(indices[1] * copy) / zero_moment
+        centroid_z = np.sum(indices[2] * copy) / zero_moment
+
+        for p in range(self.order + 1):
+            for q in range(self.order + 1):
+                for r in range(self.order + 1):
+                    if 2 <= p + q + r <= self.order:
+                        moment = np.sum(((indices[0] - centroid_x) ** p) *
+                                        ((indices[1] - centroid_y) ** q) *
+                                        ((indices[2] - centroid_z) ** r) *
+                                        copy)
+
+                        if self.normalize and p + q + r >= 2:
+                            moment = moment / (zero_moment **
+                                               ((1 + (p + q + r)) / 2.0))
+
+                        central_moments[f'{p}{q}{r}'] = moment
+
+        central_moments['centroid_x'] = centroid_x
+        central_moments['centroid_y'] = centroid_y
+        central_moments['centroid_z'] = centroid_z
+
+        return central_moments
+
+    def GetName(self) -> str:
+        return "CentralMoments"
+
+    def GetType(self) -> DescriptorType:
+        return DescriptorType.DICT_SCALAR
