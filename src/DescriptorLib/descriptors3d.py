@@ -518,7 +518,7 @@ class HuMoments(DescriptorBase):
         result = dict()
 
         central_normalized_moments = CentralMoments(3, True)
-        cnm = central_normalized_moments.Eval()
+        cnm = central_normalized_moments.Eval(image, mask)
 
         result['hu1'] = cnm['200'] + cnm['020'] + cnm['002']
         result['hu2'] = (cnm['200'] - cnm['020']) ** 2 + \
