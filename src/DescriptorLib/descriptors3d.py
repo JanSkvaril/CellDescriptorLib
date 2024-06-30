@@ -134,7 +134,7 @@ class Histogram3D(DescriptorBase):
         if bins is None:
             bins = np.max(image)
 
-        return np.histogram(image[mask != 0], bins)
+        return np.histogram(image[mask != 0], bins=bins)
 
     def GetName(self) -> str:
         return "Histogram"
@@ -155,7 +155,6 @@ class HistogramDescriptors3D(DescriptorBase):
         - median
         - max
         - min
-        - argmax
         - geometric_mean
         - skewness
         - kurtosis
@@ -219,12 +218,11 @@ class HistogramDescriptors3D(DescriptorBase):
         result["median"] = median_bin_left + ((total_count / 2
                                                - total_counts_before_median)
                                               / median_bin_count) * bin_width
-
-        result["argmax"] = np.argmax(histogram)
-
-        total_contribution = np.prod(bin_centers * histogram)
-        result["gmean"] = total_contribution ** (1 / total_count)
-
+        
+        weighted_log = np.log(bin_centers) * histogram
+        mean_weighted_log = np.sum(weighted_log) / total_count
+        result["gmean"] = np.exp(mean_weighted_log)
+        
         result["skewness"] = moment3 / (result["std"] ** 3)
         result["kurtosis"] = (moment4 / (result["var"] ** 2)) - 3
 
@@ -270,18 +268,12 @@ class Granulometry3D(DescriptorBase):
 
         for radius in range(0, max_radius, step):
             st_element = ball(radius)
-            opening = binary_opening(image, structure=st_element)
-            opening[mask == 0] = 0
+            opening = binary_opening(mask, structure=st_element)
 
             opening_volume = np.sum(opening)
-            curve.append(opening_volume - init_volume)
-            init_volume = opening_volume
+            curve.append(opening_volume / init_volume)
 
-        curve = np.array(curve)
-        curve = curve - np.min(curve)
-        curve = curve / np.max(curve)
-
-        return curve
+        return np.array(curve)
 
 
 class PowerSpectrum3D(DescriptorBase):
@@ -345,7 +337,7 @@ class Autocorrelation3D(DescriptorBase):
         if size is not None:
             autocorr_img = resize(autocorr_img, (size, size, size))
 
-        return autocorr_img
+        return np.fft.fftshift(autocorr_img)
 
 
 class LocalBinaryPattern3D(DescriptorBase):
@@ -353,15 +345,16 @@ class LocalBinaryPattern3D(DescriptorBase):
         Computes histogram of local binary patterns from image within mask.
     """
 
-    def __init__(self, radius: int = 3):
+    def __init__(self, radius: int = 1):
         self.radius = radius
 
     def Eval(self, image: np.array, mask: np.array):
-        n_points = ((2 * self.radius + 1) ** 3) - 1
-        lbp = self.ComputeLBP3D(image, self.radius)
+        src = np.copy(image)
+        src[mask == 0] = 0        
+        lbp = self.ComputeLBP3D(src, self.radius)
 
-        hist, _ = Histogram3D(n_points + 1).Eval(lbp, mask)
-        return hist
+        hist, bin_edges = Histogram3D(64).Eval(lbp, mask)
+        return hist / np.sum(hist), bin_edges
 
     def GetName(self) -> str:
         return "Local binary pattern"
@@ -397,7 +390,7 @@ class LocalBinaryPattern3D(DescriptorBase):
         return lbp_image
 
 
-class RawMoments(DescriptorBase):
+class RawMoments3D(DescriptorBase):
     """
         Calculates the moments up to given order or default 4th order
         of the image within the mask.
@@ -437,7 +430,7 @@ class RawMoments(DescriptorBase):
         return DescriptorType.DICT_SCALAR
 
 
-class CentralMoments(DescriptorBase):
+class CentralMoments3D(DescriptorBase):
     """
         Calculates the centroids and central moments from the 2nd up to
         the given order or defaults to the 4th order of the image within
@@ -502,7 +495,7 @@ class CentralMoments(DescriptorBase):
         return DescriptorType.DICT_SCALAR
 
 
-class HuMoments(DescriptorBase):
+class HuMoments3D(DescriptorBase):
     """
         Calculates the first seven Hu moments of the image within the mask.
         - image: 3D numpy array
@@ -517,7 +510,7 @@ class HuMoments(DescriptorBase):
         copy[mask == 0] = 0
         result = dict()
 
-        central_normalized_moments = CentralMoments(3, True)
+        central_normalized_moments = CentralMoments3D(3, True)
         cnm = central_normalized_moments.Eval(image, mask)
 
         result['hu1'] = cnm['200'] + cnm['020'] + cnm['002']
@@ -582,7 +575,7 @@ class HuMoments(DescriptorBase):
         return DescriptorType.DICT_SCALAR
 
 
-class GlcmFeatures(DescriptorBase):
+class GlcmFeatures3D(DescriptorBase):
     """
         Computes the descriptors of the co-ocurrence matrix for a given delta
         (defaults to (x, y, z) = (1, 1, 1)) and distance to check
@@ -607,10 +600,10 @@ class GlcmFeatures(DescriptorBase):
         self.distance = distance
 
     def Eval(self, image: np.array, mask: np.array):
-        glcm = self.Glcm(image, mask)
-        return self.GlcmFeatures(glcm)
+        glcm = self.Glcm3D(image, mask)
+        return self.GlcmFeatures3D(glcm)
 
-    def Glcm(self, image: np.array, mask: np.array) -> np.array:
+    def Glcm3D(self, image: np.array, mask: np.array) -> np.array:
         """
             Creates gray level co-ocurrence matrix from values in mask.
             - image: 2D numpy array, with values ranging from 0 to 255
@@ -653,7 +646,7 @@ class GlcmFeatures(DescriptorBase):
         else:
             return 0
 
-    def GlcmFeatures(self, matrix: np.array, mean: bool = True) -> dict:
+    def GlcmFeatures3D(self, matrix: np.array, mean: bool = True) -> dict:
         """
             Computes the descriptors of the normalized co-ocurrence matrix.
             - matrix: glcm matrix
